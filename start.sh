@@ -1,0 +1,2 @@
+export VINEYARD_APP_PORT=8001
+dotnet run
