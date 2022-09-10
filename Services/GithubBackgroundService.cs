@@ -24,6 +24,16 @@ public class GithubBackgroundService : BackgroundService
         this.projects = projects;
     }
 
+    public IEnumerable<ProjectInfo> GetProjects()
+    {
+        return projects;
+    }
+
+    public ProjectInfo GetProject(string projectName)
+    {
+        return projects.Where(x => x.Name == projectName).Single();
+    }
+
     public override async Task StopAsync(CancellationToken stoppingToken)
     {
         foreach(var (key, process) in processes)

@@ -20,7 +20,7 @@ var projects = new ProjectInfo[]{
         Repository = "https://github.com/root-evil/vineyard_backend.git",
         Path = "vineyard_backend",
     }
-}.AsEnumerable();
+}.AsEnumerable().Where(x => x.Name != "Deploy");
 
 var version = new VersionInfo
 {
