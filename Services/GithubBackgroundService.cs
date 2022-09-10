@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.Serialization;
-using System.IO;
-using System.Collections.Generic;
 
 using vineyard_deploy.Models;
 
@@ -16,12 +11,17 @@ public class GithubBackgroundService : BackgroundService
     private readonly Dictionary<ProjectInfo, Process> processes = new Dictionary<ProjectInfo, Process>();
     private DirectoryInfo workDirectory;
 
+    private IEnumerable<string> IgnoreNames = new string[] {
+        "Deploy",
+        "Map"
+    };
+
     public GithubBackgroundService( 
         IEnumerable<ProjectInfo> projects,
         ILogger<GithubBackgroundService> logger)
     {
         this.logger = logger;
-        this.projects = projects;
+        this.projects = projects.OrderBy(x => IgnoreNames.Contains(x.Name));
     }
 
     public IEnumerable<ProjectInfo> GetProjects()
@@ -80,6 +80,12 @@ public class GithubBackgroundService : BackgroundService
 
     private async Task StartProject(ProjectInfo project)
     {
+        if(IgnoreNames.Contains(project.Name))
+        {
+            project.Status = ProjectStatus.Alive;
+            return;
+        }
+
         if(project.Path == null)
             return;
 

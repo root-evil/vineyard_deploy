@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Net;
 using System.Reflection;
 using Microsoft.OpenApi.Any;
@@ -6,21 +7,9 @@ using Microsoft.OpenApi.Models;
 using vineyard_deploy.Services;
 using vineyard_deploy.Models;
 
+var projects = JsonSerializer.Deserialize<List<ProjectInfo>>(File.ReadAllText("../vineyard_map/map.json"));
 
-var Port = int.Parse(Environment.GetEnvironmentVariable("VINEYARD_APP_PORT") ?? "0");
-
-// get projects from vineyard_map/dev.json
-// get projects from vineyard_map/prod.json
-
-var projects = new ProjectInfo[]{
-    new ProjectInfo
-    {
-        Name = "Backend",
-        Port = 5000,
-        Repository = "https://github.com/root-evil/vineyard_backend.git",
-        Path = "vineyard_backend",
-    }
-}.AsEnumerable().Where(x => x.Name != "Deploy");
+var Port = projects?.Where(x => x.Name == "Deploy").Single().Port ?? 0;
 
 var version = new VersionInfo
 {
