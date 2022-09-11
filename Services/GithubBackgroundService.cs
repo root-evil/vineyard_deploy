@@ -34,18 +34,30 @@ public class GithubBackgroundService : BackgroundService
         return projects.Where(x => x.Name == projectName).Single();
     }
 
-    public override async Task StopAsync(CancellationToken stoppingToken)
+    public async Task<string> GetLog(string projectName, CancellationToken stoppingToken = default)
+    {
+        if(projectName == "Deploy")
+            return "";
+        var project = GetProject(projectName);
+        if(project.Path == null)
+            return "";
+        var logFilePath = LogFilePath(project.Path);
+        return await File.ReadAllTextAsync(logFilePath, stoppingToken);
+    }
+
+    public override async Task StopAsync(CancellationToken stoppingToken = default)
     {
         foreach(var (key, process) in processes)
         {
             process.Kill(true);
+            await process.WaitForExitAsync(stoppingToken);
             logger.LogInformation($"Stopped : {key}");
         }
         Directory.Delete(this.workDirectory.FullName, true);
         logger.LogInformation($"Directory deleted : {this.workDirectory.FullName}");
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken = default)
     {
         this.workDirectory = Directory.CreateDirectory($"Workspace");
         logger.LogInformation($"Directory created : {this.workDirectory.FullName}");
@@ -60,15 +72,15 @@ public class GithubBackgroundService : BackgroundService
         }
         logger.LogInformation($"Service is stopping");
     }
-    public async Task ProcessProjectAsync(ProjectInfo project, CancellationToken stoppingToken)
+    public async Task ProcessProjectAsync(ProjectInfo project, CancellationToken stoppingToken = default)
     {
         try
         {
             if(project.Repository != null && project.Path != null)
             {
-                await GetRepo(project.Repository);
-                if(await UpdateRepo(project.Path) || (project.Status == ProjectStatus.Dead))
-                    await StartProject(project);
+                await GetRepo(project.Repository, stoppingToken);
+                if(await UpdateRepo(project.Path, stoppingToken) || (project.Status == ProjectStatus.Dead))
+                    await StartProject(project, stoppingToken);
             }
             logger.LogInformation($"Processed {project}");
         }
@@ -78,7 +90,7 @@ public class GithubBackgroundService : BackgroundService
         }
     }
 
-    private async Task StartProject(ProjectInfo project)
+    private async Task StartProject(ProjectInfo project, CancellationToken stoppingToken = default)
     {
         if(IgnoreNames.Contains(project.Name))
         {
@@ -93,6 +105,7 @@ public class GithubBackgroundService : BackgroundService
         if(oldProcess != null)
         {
             oldProcess.Kill(true);
+            await oldProcess.WaitForExitAsync(stoppingToken);
             project.Status = ProjectStatus.Dead;
         }
 
@@ -109,11 +122,13 @@ public class GithubBackgroundService : BackgroundService
                 WorkingDirectory = Path.Combine(workDirectory.FullName, project.Path),
             }
         };
+        var logFilePath = LogFilePath(project.Path);
         process.StartInfo.Environment.Add("VINEYARD_APP_PORT", project.Port.ToString());
         process.OutputDataReceived += new DataReceivedEventHandler((sender, e) =>
         {
             if (!String.IsNullOrEmpty(e.Data))
             {
+                File.AppendAllText(logFilePath, e.Data + '\n');
                 Console.WriteLine($"[ {project.Name} ] {e.Data}");
             }
         });
@@ -128,7 +143,7 @@ public class GithubBackgroundService : BackgroundService
         processes[project] = process;
     }
 
-    private async Task<bool> GetRepo(string path)
+    private async Task<bool> GetRepo(string path, CancellationToken stoppingToken = default)
     {
         logger.LogInformation($"Cloning : {path}");
         var process = new Process() {
@@ -144,13 +159,13 @@ public class GithubBackgroundService : BackgroundService
             }
         };
         process.Start();
-        await process.WaitForExitAsync();
+        await process.WaitForExitAsync(stoppingToken);
         string result = await process.StandardError.ReadToEndAsync();
         logger.LogInformation($"Clone result : {result}");
         return !result.Contains("already exists and is not an empty directory.");
     }
 
-    private async Task<bool> UpdateRepo(string path)
+    private async Task<bool> UpdateRepo(string path, CancellationToken stoppingToken = default)
     {
         logger.LogInformation($"Pull : {path}");
         var process = new Process() {
@@ -165,9 +180,14 @@ public class GithubBackgroundService : BackgroundService
             }
         };
         process.Start();
-        await process.WaitForExitAsync();
+        await process.WaitForExitAsync(stoppingToken);
         string result = await process.StandardOutput.ReadToEndAsync();
         logger.LogInformation($"Pull result : {result}");
         return !result.Contains("Already up to date.");
+    }
+
+    private string LogFilePath(string path)
+    {
+        return Path.Combine(workDirectory.FullName, path + ".log");
     }
 }
