@@ -50,6 +50,15 @@ builder.Services.AddSwaggerGen(options =>
     }
 );
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(
+        builder =>
+        {
+            builder.AllowAnyMethod().AllowAnyHeader().AllowAnyOrigin();
+        });
+});
+
 var app = builder.Build();
 
 app.UseHttpLogging();
