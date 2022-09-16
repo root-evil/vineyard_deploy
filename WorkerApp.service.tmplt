@@ -1,0 +1,15 @@
+[Unit]
+Description={app_description}
+
+[Service]
+Type=notify
+WorkingDirectory={working_directory}
+ExecStart={dotnet_path} {exec_absolute_path}
+SyslogIdentifier={app_name}
+User={user_name}
+Restart=always
+RestartSec=5
+Environment=DOTNET_ROOT={DOTNET_ROOT}
+
+[Install]
+WantedBy=multi-user.target
