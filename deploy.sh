@@ -5,6 +5,7 @@ dotnet_path=$(which dotnet)
 working_directory=$(pwd)/srv
 exec_absolute_path=$working_directory/$app_name.dll
 
+cp -r ../vineyard_map/ ./
 dotnet publish -c Release -o ./srv
 p=$(pwd)/$app_name.dll
 cat WorkerApp.service.tmplt |
